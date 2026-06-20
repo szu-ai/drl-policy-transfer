@@ -1,0 +1,12 @@
+# Model checkpoints (large files)
+checkpoints/*.pt
+
+# Logs
+logs/
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.env
