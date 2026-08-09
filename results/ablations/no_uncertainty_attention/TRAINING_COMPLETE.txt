@@ -1,0 +1,6 @@
+variant=no_uncertainty_attention
+completed_at=2026-08-03T21:59:18+08:00
+train_steps=500000
+seed=42
+checkpoint=/home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_uncertainty_attention/models/source_agent.pt
+d8d7284e5a461c8cf3ac55e67a4c41ec64ce5a8a896f865e9765393ea55932b1  /home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_uncertainty_attention/models/source_agent.pt

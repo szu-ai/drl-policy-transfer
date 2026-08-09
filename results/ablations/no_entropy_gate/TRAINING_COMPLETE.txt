@@ -1,0 +1,6 @@
+variant=no_entropy_gate
+completed_at=2026-08-04T04:39:48+08:00
+train_steps=500000
+seed=42
+checkpoint=/home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_entropy_gate/models/source_agent.pt
+5c0f2b839889e3c8c3ce123c82f07674601fca563e831ac57bb102a93761abbe  /home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_entropy_gate/models/source_agent.pt

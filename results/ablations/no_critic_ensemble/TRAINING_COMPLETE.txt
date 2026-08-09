@@ -1,0 +1,6 @@
+variant=no_critic_ensemble
+completed_at=2026-08-04T00:40:37+08:00
+train_steps=500000
+seed=42
+checkpoint=/home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_critic_ensemble/models/source_agent.pt
+06162fb28757e1b8eae02b7c87f0bfb6c36491de478d6db45d899a81263a7a4e  /home/umb/Desktop/T_PAMI/culrt_carla_0915_aligned/ablations/no_critic_ensemble/models/source_agent.pt
