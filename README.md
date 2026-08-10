@@ -675,7 +675,7 @@ These images correspond to the controlled Town10HD representation, route, reward
 ### Training-time uncertainty trace
 
 <p align="center">
-  <img src="./graphs/uncertainty_training.png" width="86%" alt="Training-time uncertainty and entropy trace"/>
+  <img src="./graphs/uncertainty_training.png" width="50%" alt="Training-time uncertainty and entropy trace"/>
 </p>
 
 This trace is derived from `results/training/Town10HD_Opt_seed42_20260810_120901.log` and compares normalized decision uncertainty with the effective entropy coefficient used by the implementation. The effective coefficient includes both the learned SAC temperature and the scaled uncertainty-gated term; it is not simply `beta0 * (1 - sigma_bar)`. The log header records training curriculum and safety shield as enabled, so this trace documents that specific assisted training run rather than the no-curriculum source command shown earlier.
@@ -683,7 +683,7 @@ This trace is derived from `results/training/Town10HD_Opt_seed42_20260810_120901
 ### Reliability diagnostic
 
 <p align="center">
-  <img src="./graphs/reliability_proxy.png" width="86%" alt="Composite safety-confidence reliability diagnostic"/>
+  <img src="./graphs/reliability_proxy.png" width="50%" alt="Composite safety-confidence reliability diagnostic"/>
 </p>
 
 The reliability-style plot bins a composite confidence constructed from available closed-loop outcomes and compares it with safe completion. The evaluation CSVs do not contain the per-step held-out calibration labels required for a final ECE estimate. The plotted weighted gap of `0.588` is therefore a diagnostic quantity, not proof of calibrated deployment confidence or a safety certificate.
@@ -691,7 +691,7 @@ The reliability-style plot bins a composite confidence constructed from availabl
 ### Logged closed-loop trajectories
 
 <p align="center">
-  <img src="./graphs/town_trajectories.png" width="96%" alt="Aerial views and logged closed-loop trajectories for six towns"/>
+  <img src="./graphs/town_trajectories.png" width="100%" alt="Aerial views and logged closed-loop trajectories for six towns"/>
 </p>
 
 The consolidated figure pairs aerial town views with all 20 logged routes for Town10HD_Opt and Town01-Town05. Planned paths, successful and unsuccessful ego rollouts, start positions, and route goals should be interpreted together with terminal reasons and quantitative metrics.
