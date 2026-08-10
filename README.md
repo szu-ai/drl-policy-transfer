@@ -24,11 +24,11 @@ This repository accompanies <b>Ego-Relational Policy Transfer for Safety-Aware E
 </p>
 
 <p align="justify">
-Learning and measurement are deliberately separated. <code>code/car.py</code> provides source training, target adaptation, and target-only learning. <code>code/car_eval.py</code> imports a compatible training module, freezes the selected checkpoint, uses deterministic actions, disables gradient updates, and evaluates one town per process. <code>code/car2.py</code> retains the same environment and agent interfaces while exposing the ablations reported in the manuscript.
+Learning and measurement are deliberately separated. <code>code/car.py</code> provides source training, target adaptation, and target-only learning. <code>code/car_eval.py</code> imports a compatible training module, freezes the selected checkpoint, uses deterministic actions, disables gradient updates, and evaluates one town per process. <code>code/car2.py</code> retains the same environment and agent interfaces while exposing the ablations.
 </p>
 
 <p align="justify">
-At each decision step, the policy describes nearby road users and traffic controls relative to the ego vehicle, combines that relational representation with route and motion features, and produces continuous throttle, brake, and steering commands. Observation variance and critic disagreement are also propagated through attention, reward construction, entropy control, and transfer losses. This README summarizes those implementation choices in original wording; the manuscript remains the authoritative source for the method derivation and experimental claims.
+At each decision step, the policy describes nearby road users and traffic controls relative to the ego vehicle, combines that relational representation with route and motion features, and produces continuous throttle, brake, and steering commands. Observation variance and critic disagreement are also propagated through attention, reward construction, entropy control, and transfer losses.
 </p>
 
 ---
@@ -36,7 +36,7 @@ At each decision step, the policy describes nearby road users and traffic contro
 ## Method Summary
 
 <p align="center">
-  <img src="./figs/unified_framework.png" width="92%" alt="Unified ego-relational policy-transfer framework"/>
+  <img src="./figs/unified_framework.png" width="100%" alt="Unified ego-relational policy-transfer framework"/>
 </p>
 
 <p align="justify">
@@ -67,9 +67,9 @@ SAC actor-critic policy
 Closed-loop throttle, brake, steering
 ```
 
-### Paper and released-code configuration
+### Code configuration
 
-| Component | Paper-aligned configuration | Stage |
+| Component | Configuration | Stage |
 |---|---|---|
 | Entity set | Up to 10 nearest non-ego relational entities from the 60 m local neighborhood | Training and inference |
 | Edge features | Relative position, velocity, type, lane, and variance | Training and inference |
@@ -79,16 +79,16 @@ Closed-loop throttle, brake, steering
 | Batch size | 512 | Training |
 | Discount / target update | `gamma = 0.99`, `tau = 5e-3` | Training |
 | Optimizer | Adam, learning rate `3e-4` | Training |
-| Entropy control | Paper gate uses `beta0` from `{0.5, 1.0}`; code adds learned SAC `alpha` and scales the gated term by `lambda_ent = 0.2` | Training |
+| Entropy control | Gate uses `beta0` from `{0.5, 1.0}`; code adds learned SAC `alpha` and scales the gated term by `lambda_ent = 0.2` | Training |
 | Transfer | Policy KL, attention MMD, uncertainty moments, MAML-style initialization | Adaptation |
-| Evaluation | Manuscript: 20 episodes and 20 NPC vehicles per town; committed arguments: 500 m target routes and 0 walkers | Evaluation |
+| Evaluation | 20 episodes and 20 NPC vehicles per town; committed arguments: 500 m target routes and 0 walkers | Evaluation |
 | Assistance in committed town runs | Safety shield on; red-light assist off; intervention rate logged | Evaluation |
 
 ---
 
-## Main Contributions Reflected in the Code
+## Main Contributions
 
-| Paper component | Implementation | Purpose |
+| Component | Implementation | Purpose |
 |---|---|---|
 | Ego-relational state | `CarlaReliableTransferEnv`, `_collect_entity_features()`, `GraphAttention`, `CompactStateEncoder` | Encodes nearby entities, lane context, route geometry, and uncertainty as a compact ego-centered state. |
 | Dense multi-objective reward | `_compute_reward_components()`, `build_reward_from_info()`, `recompute_agent_reward()` | Converts safety, progress, comfort, rule compliance, and uncertainty into differentiable training feedback. |
@@ -109,7 +109,7 @@ drl-policy-transfer/
 ├── car.py                                  <- root compatibility snapshot
 │
 ├── code/
-│   ├── car.py                              <- paper-aligned training/adaptation only
+│   ├── car.py                              <- training/adaptation only
 │   ├── car2.py                             <- training/adaptation with ablation switches
 │   └── car_eval.py                         <- frozen evaluation only; one town per process
 │
@@ -218,7 +218,7 @@ The first four removed-module variants alter source training. Transfer-alignment
 - PyTorch 2.x
 - Gymnasium
 
-The current paper-aligned files under `code/` import `gymnasium` directly. Legacy OpenAI Gym is not sufficient for those files.
+The current files under `code/` import `gymnasium` directly. Legacy OpenAI Gym is not sufficient for those files.
 
 > **Dependency note:** the committed `requirements.txt` still lists `gym`. Until that file is updated, install `gymnasium` explicitly as shown below instead of relying on `pip install -r requirements.txt` alone.
 
@@ -289,9 +289,9 @@ python code/car2.py --help
 
 ## How to Run
 
-### A. Manuscript-scale source training
+### A. Source training
 
-The manuscript describes source learning in adverse Town10HD conditions with 20 NPC vehicles and the optimization settings summarized above. The released experiment uses a 500,000-step budget and 500 m route targets. Because the manuscript does not list the optional curriculum, safety shield, or red-light assist as source-training factors, the clean reference command below leaves them disabled. If any of those switches are enabled, record them as a separate training protocol.
+The work describes source learning in adverse Town10HD conditions with 20 NPC vehicles and the optimization settings summarized above. The released experiment uses a 500,000-step budget and 500 m route targets. Because the work does not list the optional curriculum, safety shield, or red-light assist as source-training factors, the clean reference command below leaves them disabled. If any of those switches are enabled, record them as a separate training protocol.
 
 ```bash
 PYTHONUNBUFFERED=1 python -u code/car.py \
@@ -386,7 +386,7 @@ python -u code/car_eval.py \
 
 ### D. MAML-style target adaptation for Town01-Town04
 
-The paper protocol labels Town01-Town04 as adapted target domains. Adaptation with transfer alignment requires two CARLA servers: the target server on port `2200` and a source-replay server on a distinct RPC port such as `2300`.
+The protocol labels Town01-Town04 as adapted target domains. Adaptation with transfer alignment requires two CARLA servers: the target server on port `2200` and a source-replay server on a distinct RPC port such as `2300`.
 
 Example for Town01:
 
@@ -506,14 +506,14 @@ Valid source-stage choices are `no_uncertainty_attention`, `no_critic_ensemble`,
 | `--car-module` | Training module imported by the evaluation-only script. |
 | `--town` | Single evaluation town. |
 | `--protocol` | `source_stress`, `zero_shot`, `cross_town`, `extended`, or `auto`. |
-| `--episodes` | Number of frozen closed-loop evaluation episodes; paper default is 20. |
-| `--train-steps` | Source environment-step budget; paper setting is 500,000. |
+| `--episodes` | Number of frozen closed-loop evaluation episodes; default is 20. |
+| `--train-steps` | Source environment-step budget; setting is 500,000. |
 | `--adapt-steps` | Target adaptation step budget. |
-| `--route-target-length` | Desired route length; paper setting is 500 m with a 490-510 m acceptance window. |
+| `--route-target-length` | Desired route length; setting is 500 m with a 490-510 m acceptance window. |
 | `--train-npc-min/max` | Source-training vehicle count range. |
 | `--npc-min/max` | Target/adaptation/evaluation vehicle count range. |
 | `--walker-min/max` | Evaluation pedestrian count range. |
-| `--attention-score-form reliability` | Uses distance and variance penalties matching the manuscript text and Table I. |
+| `--attention-score-form reliability` | Uses distance and variance penalties. |
 | `--use-safety-shield` | Enables bounded evaluation assistance; every intervention is logged. |
 | `--enable-training-curriculum` | Optional non-paper bootstrap; disabled by default and must be disclosed if used. |
 | `--no-rendering` | Disables CARLA rendering through world settings. |
@@ -524,7 +524,7 @@ Valid source-stage choices are `no_uncertainty_attention`, `no_critic_ensemble`,
 ## Evaluation Protocol
 
 <p align="justify">
-Experiments use CARLA 0.9.15 with synchronous stepping at 20 Hz. The manuscript reports 20 closed-loop episodes for Town10HD_Opt and Town01-Town05 with 20 NPC vehicles. The committed evaluator arguments additionally record 500 m target routes and zero walkers. Town10HD_Opt is the adverse source-stress domain, Town05 is the mixed-weather zero-shot target, and Town01-Town04 are labeled as MAML-style adapted targets. Each town is evaluated in a separate process with a frozen deterministic policy.
+Experiments use CARLA 0.9.15 with synchronous stepping at 20 Hz. The work reports 20 closed-loop episodes for Town10HD_Opt and Town01-Town05 with 20 NPC vehicles. The committed evaluator arguments additionally record 500 m target routes and zero walkers. Town10HD_Opt is the adverse source-stress domain, Town05 is the mixed-weather zero-shot target, and Town01-Town04 are labeled as MAML-style adapted targets. Each town is evaluated in a separate process with a frozen deterministic policy.
 </p>
 
 For episode `i`, the repository evaluator reports:
@@ -552,9 +552,9 @@ where `RC_i` is route completion in percent and `IS_local_i` is the reciprocal p
 
 ### Protocol and provenance note
 
-The committed `results/evaluation/*/summary.json` files reproduce the numerical values used in the manuscript tables. However, the metadata for Town01-Town04 records `source_agent.pt` rather than a per-town `target_agent.pt`. Therefore, the committed metadata alone does not establish that those four archived directories came from adapted checkpoints. For a strictly auditable manuscript reproduction, rerun Town01-Town04 from their adapted target checkpoints and retain each checkpoint path and hash in the result metadata.
+The committed `results/evaluation/*/summary.json` files reproduce the numerical values used in the tables. However, the metadata for Town01-Town04 records `source_agent.pt` rather than a per-town `target_agent.pt`. Therefore, the committed metadata alone does not establish that those four archived directories came from adapted checkpoints. For a strictly auditable reproduction, rerun Town01-Town04 from their adapted target checkpoints and retain each checkpoint path and hash in the result metadata.
 
-| Town group | Manuscript role | Committed protocol / checkpoint evidence |
+| Town group | Role | Committed protocol / checkpoint evidence |
 |---|---|---|
 | Town10HD_Opt | Source-domain stress test | `source_stress`; source checkpoint path |
 | Town01-Town04 | MAML-style target adaptation | `extended`; metadata points to `source_agent.pt` |
@@ -566,22 +566,22 @@ This distinction prevents the README from claiming stronger provenance than the 
 
 ## Included Evaluation Results
 
-The following values are transcribed from the manuscript and agree numerically with the committed town summaries. “Paper role” describes the experimental role assigned in the manuscript; it is not a substitute for checkpoint provenance in the archive.
+The following values are transcribed and agree numerically with the committed town summaries. It is not a substitute for checkpoint provenance in the archive.
 
 | Setting | Town | Episodes | SR (%) | DS | RC (%) | IS | CTE (m) | Heading (rad) | Min TTC (s) | Intervention | Coll./km |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Source stress | Town10HD_Opt | 20 | 100.0 | 94.20 | 98.42 | 0.957 | 0.066 | 0.083 | 0.902 | 0.490 | 0.0000 |
-| Paper: MAML adaptation | Town01 | 20 | 95.0 | 93.73 | 97.61 | 0.957 | 0.096 | 0.094 | 0.786 | 0.468 | 0.1024 |
-| Paper: MAML adaptation | Town02 | 20 | 95.0 | 89.19 | 94.68 | 0.929 | 0.105 | 0.122 | 0.685 | 0.628 | 0.1055 |
-| Paper: MAML adaptation | Town03 | 20 | 100.0 | 93.43 | 98.43 | 0.949 | 0.095 | 0.118 | 1.323 | 0.530 | 0.0000 |
-| Paper: MAML adaptation | Town04 | 20 | 100.0 | 98.42 | 98.42 | 1.000 | 0.091 | 0.061 | 1.075 | 0.205 | 0.0000 |
+| MAML adaptation | Town01 | 20 | 95.0 | 93.73 | 97.61 | 0.957 | 0.096 | 0.094 | 0.786 | 0.468 | 0.1024 |
+| MAML adaptation | Town02 | 20 | 95.0 | 89.19 | 94.68 | 0.929 | 0.105 | 0.122 | 0.685 | 0.628 | 0.1055 |
+| MAML adaptation | Town03 | 20 | 100.0 | 93.43 | 98.43 | 0.949 | 0.095 | 0.118 | 1.323 | 0.530 | 0.0000 |
+| MAML adaptation | Town04 | 20 | 100.0 | 98.42 | 98.42 | 1.000 | 0.091 | 0.061 | 1.075 | 0.205 | 0.0000 |
 | Zero-shot | Town05 | 20 | 100.0 | 91.39 | 98.42 | 0.929 | 0.078 | 0.076 | 1.145 | 0.488 | 0.0000 |
 
-Town04 provides the strongest aggregate score, while Town10HD_Opt has the lowest mean CTE. Town02 is the most interaction-sensitive condition: it has the lowest mean DS and TTC and the highest intervention rate, despite low lateral error. This is why the paper reports completion, infractions, geometric stability, TTC, and intervention burden together rather than relying on one aggregate score.
+Town04 provides the strongest aggregate score, while Town10HD_Opt has the lowest mean CTE. Town02 is the most interaction-sensitive condition: it has the lowest mean DS and TTC and the highest intervention rate, despite low lateral error. This is why the work reports completion, infractions, geometric stability, TTC, and intervention burden together rather than relying on one aggregate score.
 
 ### Module ablation on Town02
 
-These are the manuscript-reported one-module-at-a-time results. In the repository snapshot, complete 20-episode evaluation summaries are present for `no_transfer_alignment` and `no_maml`. The other four removed-module directories contain training manifests and/or checkpoints but not their complete evaluation summaries, so their table entries should be treated as paper values until those evaluations are added.
+These are the one-module-at-a-time results. In the repository snapshot, complete 20-episode evaluation summaries are present for `no_transfer_alignment` and `no_maml`. The other four removed-module directories contain training manifests and/or checkpoints but not their complete evaluation summaries, so their table entries should be treated as values until those evaluations are added.
 
 | Variant | SR (%) | RC (%) | DS | IS | Coll./km | Timeout/km |
 |---|---:|---:|---:|---:|---:|---:|
@@ -640,7 +640,7 @@ Its `[TRAIN]` rows contain training step, critic loss, actor loss, learned SAC t
   <img src="./graphs/closed_loop.png" width="86%" alt="Success rate, bounded driving score, and infraction score across towns"/>
 </p>
 
-This manuscript-aligned summary compares success rate, bounded local driving score, and local infraction score across the six evaluation towns. Its values match the committed town summaries and Tables III and V of the manuscript.
+This summary compares success rate, bounded local driving score, and local infraction score across the six evaluation towns.
 
 ### Episode-level statistics
 
@@ -656,7 +656,7 @@ The annotated cells report town means for driving score, route completion, CTE, 
   <img src="./graphs/influence_attention.png" width="82%" alt="Influence attention over nearby road users"/>
 </p>
 
-The four examples reproduce the manuscript's clear-intersection, fog-intersection, pedestrian-crossing, and dense cut-in attention summaries. The bars are normalized relational weights, not causal-effect estimates.
+The four examples reproduce the clear-intersection, fog-intersection, pedestrian-crossing, and dense cut-in attention summaries. The bars are normalized relational weights, not causal-effect estimates.
 
 ### Controlled method comparisons
 
@@ -670,7 +670,7 @@ The four examples reproduce the manuscript's clear-intersection, fog-intersectio
   <img src="./graphs/uncertainty_modulation.png" width="48%" alt="Controlled exploration, collision, and stability comparison"/>
 </p>
 
-These images correspond to the manuscript's controlled Town10HD representation, route, reward, and exploration comparisons. The archive contains the plotted figures but not the raw baseline checkpoints or per-method logs. Consequently, the baseline bars are manuscript-reported comparison values and cannot be independently regenerated from this repository snapshot alone.
+These images correspond to the controlled Town10HD representation, route, reward, and exploration comparisons. The archive contains the plotted figures but not the raw baseline checkpoints or per-method logs. Consequently, the baseline bars are reported comparison values and cannot be independently regenerated from this repository snapshot alone.
 
 ### Training-time uncertainty trace
 
@@ -717,19 +717,19 @@ video/3.mp4
 
 ---
 
-## Paper-Code Alignment Notes
+## Notes
 
 | Item | Repository behavior | Reporting requirement |
 |---|---|---|
-| Attention score | Default `reliability` form penalizes distance and variance, matching the manuscript text and Table I. `paper_ratio` reproduces the printed Eq. (6), whose variance behavior is inconsistent with that text. | Report which form was used. |
-| Entropy coefficient | The manuscript presents an uncertainty gate, while the code uses `alpha + lambda_ent * beta0 * (1 - sigma_bar)` with learned SAC `alpha` and `lambda_ent = 0.2`. | Use the implementation expression when describing released-code training traces. |
+| Attention score | Default `reliability` form penalizes distance and variance. `ratio` reproduces the printed Eq. (6), whose variance behavior is inconsistent with that text. | Report which form was used. |
+| Entropy coefficient | The work presents an uncertainty gate, while the code uses `alpha + lambda_ent * beta0 * (1 - sigma_bar)` with learned SAC `alpha` and `lambda_ent = 0.2`. | Use the implementation expression when describing released-code training traces. |
 | MAML | The implementation is a first-order approximation and omits exact second-order meta-gradients. | Describe it as first-order MAML-style initialization. |
-| Training curriculum | Optional scripted route guidance and traffic ramp; disabled by default. | It is not part of the paper method. Disclose it and apply it to all matched baselines if enabled. |
+| Training curriculum | Optional scripted route guidance and traffic ramp; disabled by default. | It is not part of the method. Disclose it and apply it to all matched baselines if enabled. |
 | Safety assistance | The shield and red-light assist are deployment/evaluation interventions. | Report intervention rate and assistance flags with DS and SR. |
 | Driving score | Evaluator computes a bounded local score from observable events. | Do not call it an official CARLA Leaderboard score. |
 | Uncertainty calibration | Evaluation never fits the calibrator on test data. | If the checkpoint calibrator is unfitted, report uncertainty as diagnostic rather than held-out calibrated. |
 | Checkpoint selection | Training can save final and optional training-selected checkpoints. | Use final checkpoints or a separate validation set; do not select on the test towns. |
-| Archive provenance | Town01-Town04 summaries point to the source checkpoint even though the paper labels those domains as adapted. | Do not claim that archived files prove adapted-checkpoint evaluation; rerun and record hashes. |
+| Archive provenance | Town01-Town04 summaries point to the source checkpoint even though the labels those domains as adapted. | Do not claim that archived files prove adapted-checkpoint evaluation; rerun and record hashes. |
 
 ---
 
@@ -738,8 +738,8 @@ video/3.mp4
 - Use CARLA 0.9.15 on both the server and Python client.
 - Use synchronous stepping at 20 Hz.
 - Use 500 m target routes when reproducing the committed evaluation archive, and record the actual planned length.
-- Evaluate exactly 20 episodes per town for the paper tables.
-- Use 20 NPC vehicles and 0 walkers when reproducing the committed evaluation arguments; the manuscript tables explicitly state the NPC count but not the walker count.
+- Evaluate exactly 20 episodes per town for the tables.
+- Use 20 NPC vehicles and 0 walkers when reproducing the committed evaluation arguments; the tables explicitly state the NPC count but not the walker count.
 - Use seed 42 for the supplied single-seed runs; do not present this as multi-seed uncertainty.
 - Run one town per evaluation process and keep town-specific output directories.
 - Freeze the actor, disable gradients, and preserve deterministic action selection during evaluation.
@@ -763,7 +763,7 @@ python -c "import carla; print(carla.__file__)"
 
 ### Gym reports that it is unmaintained
 
-The paper-aligned code requires Gymnasium:
+The code requires Gymnasium:
 
 ```bash
 python -m pip uninstall -y gym
