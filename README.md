@@ -40,7 +40,7 @@ At each decision step, the policy describes nearby road users and traffic contro
 </p>
 
 <p align="justify">
-The implementation has four cooperating parts. The state encoder selects at most ten entities inside a 60 m neighborhood and applies reliability-aware relational attention. A dense objective supplies intermediate feedback for progress, safety, comfort, traffic compliance, and uncertainty. Observation variance and disagreement among five critics are combined into a normalized decision-uncertainty value. During adaptation, policy outputs, attention summaries, and uncertainty moments are aligned across domains, starting from a first-order MAML-style initialization when that option is enabled.
+The implementation has four cooperating parts. At each control step, the state encoder forms candidates from non-ego vehicles and pedestrians inside a 60 m ego-centered radius together with the currently relevant traffic light, sorts them by distance, and retains at most ten entities in total. Unused tensor positions are masked. Reliability-aware attention then aggregates the retained edges. A dense objective supplies intermediate feedback for progress, safety, comfort, traffic compliance, and uncertainty. Observation variance and disagreement among five critics are combined into a normalized decision-uncertainty value. During adaptation, policy outputs, attention summaries, and uncertainty moments are aligned across domains, starting from a first-order MAML-style initialization when that option is enabled.
 </p>
 
 ```text
@@ -67,11 +67,11 @@ SAC actor-critic policy
 Closed-loop throttle, brake, steering
 ```
 
-### Paper configuration
+### Paper and released-code configuration
 
 | Component | Paper-aligned configuration | Stage |
 |---|---|---|
-| Entity set | At most 10 entities within 60 m | Training and inference |
+| Entity set | Up to 10 nearest non-ego relational entities from the 60 m local neighborhood | Training and inference |
 | Edge features | Relative position, velocity, type, lane, and variance | Training and inference |
 | Actor | Continuous throttle, brake, and steering | Training and inference |
 | Critic ensemble | 5 critics | Training |
@@ -81,7 +81,7 @@ Closed-loop throttle, brake, steering
 | Optimizer | Adam, learning rate `3e-4` | Training |
 | Entropy control | Paper gate uses `beta0` from `{0.5, 1.0}`; code adds learned SAC `alpha` and scales the gated term by `lambda_ent = 0.2` | Training |
 | Transfer | Policy KL, attention MMD, uncertainty moments, MAML-style initialization | Adaptation |
-| Evaluation | 20 episodes, 500 m target routes, 20 NPC vehicles, 0 walkers | Evaluation |
+| Evaluation | Manuscript: 20 episodes and 20 NPC vehicles per town; committed arguments: 500 m target routes and 0 walkers | Evaluation |
 | Assistance in committed town runs | Safety shield on; red-light assist off; intervention rate logged | Evaluation |
 
 ---
@@ -124,20 +124,15 @@ drl-policy-transfer/
 │   └── unified_framework.png
 │
 ├── graphs/                                 <- GitHub-renderable experimental figures
-│   ├── standardized_closed_loop.png
-│   ├── episode_statistics_heatmap.png
+│   ├── closed_loop.png
+│   ├── episode_heatmap.png
 │   ├── influence_attention.png
-│   ├── uncertainty_modulation.png
-│   ├── safety_reliability_diagram.png
+│   ├── reliability_proxy.png
 │   ├── reward_comparison.png
 │   ├── state_route.png
 │   ├── state_stability.png
-│   ├── Town01_closed_loop_routes.png
-│   ├── Town02_closed_loop_routes.png
-│   ├── Town03_closed_loop_routes.png
-│   ├── Town04_closed_loop_routes.png
-│   ├── Town05_closed_loop_routes.png
-│   ├── Town10HD_Opt_closed_loop_routes.png
+│   ├── town_trajectories.png
+│   ├── uncertainty_modulation.png
 │   └── uncertainty_training.png
 │
 ├── results/
@@ -149,13 +144,15 @@ drl-policy-transfer/
 │   │   ├── Town05/
 │   │   └── Town10HD_Opt/
 │   ├── routes/                             <- 20 route CSVs per evaluated town
-│   └── ablations/                          <- available ablation checkpoints and records
+│   ├── ablations/                          <- available ablation checkpoints and records
+│   └── training/
+│       └── Town10HD_Opt_seed42_20260810_120901.log
 │
 ├── screenshot/
 └── video/
 ```
 
-Each complete evaluation directory contains `episodes.csv`, `summary.csv`, `summary.json`, `routes.csv`, `trajectories.csv`, and per-episode records under `routes/` and `steps/`. The archive includes six town-level evaluation directories and 20 route CSVs for each town. It does **not** include the full-model source checkpoint referenced by the saved evaluation metadata; train that model locally or provide the intended checkpoint before rerunning evaluation.
+Each complete evaluation directory contains `episodes.csv`, `summary.csv`, `summary.json`, `routes.csv`, `trajectories.csv`, and per-episode records under `routes/` and `steps/`. The archive includes six town-level evaluation directories, 20 route CSVs per town, and the source-training console log used for the training-trace figure. It does **not** include the full-model source checkpoint referenced by the saved evaluation metadata; train that model locally or provide the intended checkpoint before rerunning evaluation.
 
 ---
 
@@ -292,9 +289,9 @@ python code/car2.py --help
 
 ## How to Run
 
-### A. Paper-scale source training
+### A. Manuscript-scale source training
 
-The manuscript trains for 500,000 environment steps in adverse Town10HD conditions with 20 NPC vehicles. Paper-faithful training leaves the optional curriculum, safety shield, and red-light assist disabled.
+The manuscript describes source learning in adverse Town10HD conditions with 20 NPC vehicles and the optimization settings summarized above. The released experiment uses a 500,000-step budget and 500 m route targets. Because the manuscript does not list the optional curriculum, safety shield, or red-light assist as source-training factors, the clean reference command below leaves them disabled. If any of those switches are enabled, record them as a separate training protocol.
 
 ```bash
 PYTHONUNBUFFERED=1 python -u code/car.py \
@@ -527,7 +524,7 @@ Valid source-stage choices are `no_uncertainty_attention`, `no_critic_ensemble`,
 ## Evaluation Protocol
 
 <p align="justify">
-Experiments use CARLA 0.9.15 with synchronous stepping at 20 Hz and 500 m target routes. The manuscript reports 20 closed-loop episodes for Town10HD_Opt and Town01-Town05 with 20 NPC vehicles and no walkers. Town10HD_Opt is the adverse source-stress domain, Town05 is the mixed-weather zero-shot target, and Town01-Town04 are labeled as MAML-style adapted targets. Each town is evaluated in a separate process with a frozen deterministic policy.
+Experiments use CARLA 0.9.15 with synchronous stepping at 20 Hz. The manuscript reports 20 closed-loop episodes for Town10HD_Opt and Town01-Town05 with 20 NPC vehicles. The committed evaluator arguments additionally record 500 m target routes and zero walkers. Town10HD_Opt is the adverse source-stress domain, Town05 is the mixed-weather zero-shot target, and Town01-Town04 are labeled as MAML-style adapted targets. Each town is evaluated in a separate process with a frozen deterministic policy.
 </p>
 
 For episode `i`, the repository evaluator reports:
@@ -623,6 +620,16 @@ python -m json.tool ./runs/evaluation/Town05/summary.json | less
 wc -l ./runs/evaluation/Town05/episodes.csv
 ```
 
+### Included training log
+
+The repository includes the source console log used to prepare the training-time uncertainty figure:
+
+```text
+results/training/Town10HD_Opt_seed42_20260810_120901.log
+```
+
+Its `[TRAIN]` rows contain training step, critic loss, actor loss, learned SAC temperature, normalized uncertainty, `beta0`, and effective entropy coefficient. The header also preserves the town, traffic, weather, curriculum, assistance, rendering, and route settings needed to interpret the trace.
+
 ---
 
 ## Visual Outputs and Graph Explanations
@@ -630,18 +637,18 @@ wc -l ./runs/evaluation/Town05/episodes.csv
 ### Cross-domain closed-loop results
 
 <p align="center">
-  <img src="./graphs/standardized_closed_loop.png" width="86%" alt="Standardized closed-loop results across towns"/>
+  <img src="./graphs/closed_loop.png" width="86%" alt="Success rate, bounded driving score, and infraction score across towns"/>
 </p>
 
-This figure compares success rate, bounded driving score, and infraction score across the six evaluation towns.
+This manuscript-aligned summary compares success rate, bounded local driving score, and local infraction score across the six evaluation towns. Its values match the committed town summaries and Tables III and V of the manuscript.
 
 ### Episode-level statistics
 
 <p align="center">
-  <img src="./graphs/episode_statistics_heatmap.png" width="86%" alt="Episode statistics heatmap"/>
+  <img src="./graphs/episode_heatmap.png" width="86%" alt="Town-level closed-loop statistics heatmap"/>
 </p>
 
-The heatmap exposes domain-specific differences in completion, safety, geometric stability, and intervention behavior that are hidden by a single mean score.
+The annotated cells report town means for driving score, route completion, CTE, heading error, minimum TTC, and intervention rate. Color is normalized independently by row, so color intensity must not be compared across different metrics.
 
 ### Influence attention
 
@@ -649,16 +656,21 @@ The heatmap exposes domain-specific differences in completion, safety, geometric
   <img src="./graphs/influence_attention.png" width="82%" alt="Influence attention over nearby road users"/>
 </p>
 
-The influence examples show how the relational state prioritizes a lead vehicle, pedestrian, side vehicle, or cut-in vehicle depending on the local scene.
+The four examples reproduce the manuscript's clear-intersection, fog-intersection, pedestrian-crossing, and dense cut-in attention summaries. The bars are normalized relational weights, not causal-effect estimates.
 
-### Uncertainty modulation and reliability
+### Controlled method comparisons
 
 <p align="center">
-  <img src="./graphs/uncertainty_modulation.png" width="48%" alt="Uncertainty modulation"/>
-  <img src="./graphs/safety_reliability_diagram.png" width="48%" alt="Safety reliability diagram"/>
+  <img src="./graphs/state_stability.png" width="48%" alt="Controlled CTE and heading-error comparison"/>
+  <img src="./graphs/state_route.png" width="48%" alt="Controlled off-road and goal-completion comparison"/>
 </p>
 
-These figures are diagnostics of uncertainty activity and empirical safety behavior. The reliability-style plot uses binned confidence and completion outcomes; it is not a deployment safety certificate or evidence of held-out calibration. An unfitted checkpoint calibrator must be reported as unfitted.
+<p align="center">
+  <img src="./graphs/reward_comparison.png" width="48%" alt="Controlled training-return comparison"/>
+  <img src="./graphs/uncertainty_modulation.png" width="48%" alt="Controlled exploration, collision, and stability comparison"/>
+</p>
+
+These images correspond to the manuscript's controlled Town10HD representation, route, reward, and exploration comparisons. The archive contains the plotted figures but not the raw baseline checkpoints or per-method logs. Consequently, the baseline bars are manuscript-reported comparison values and cannot be independently regenerated from this repository snapshot alone.
 
 ### Training-time uncertainty trace
 
@@ -666,23 +678,23 @@ These figures are diagnostics of uncertainty activity and empirical safety behav
   <img src="./graphs/uncertainty_training.png" width="86%" alt="Training-time uncertainty and entropy trace"/>
 </p>
 
-This log-derived trace compares normalized decision uncertainty with the effective entropy coefficient used by the implementation. The effective coefficient includes both the learned SAC temperature and the scaled uncertainty-gated term; it is not simply `beta0 * (1 - sigma_bar)`.
+This trace is derived from `results/training/Town10HD_Opt_seed42_20260810_120901.log` and compares normalized decision uncertainty with the effective entropy coefficient used by the implementation. The effective coefficient includes both the learned SAC temperature and the scaled uncertainty-gated term; it is not simply `beta0 * (1 - sigma_bar)`. The log header records training curriculum and safety shield as enabled, so this trace documents that specific assisted training run rather than the no-curriculum source command shown earlier.
 
-### State and route behavior
+### Reliability diagnostic
 
 <p align="center">
-  <img src="./graphs/state_stability.png" width="48%" alt="State stability comparison"/>
-  <img src="./graphs/state_route.png" width="48%" alt="Route behavior comparison"/>
+  <img src="./graphs/reliability_proxy.png" width="86%" alt="Composite safety-confidence reliability diagnostic"/>
 </p>
+
+The reliability-style plot bins a composite confidence constructed from available closed-loop outcomes and compares it with safe completion. The evaluation CSVs do not contain the per-step held-out calibration labels required for a final ECE estimate. The plotted weighted gap of `0.588` is therefore a diagnostic quantity, not proof of calibrated deployment confidence or a safety certificate.
 
 ### Logged closed-loop trajectories
 
 <p align="center">
-  <img src="./graphs/Town10HD_Opt_closed_loop_routes.png" width="48%" alt="Town10HD closed-loop routes"/>
-  <img src="./graphs/Town02_closed_loop_routes.png" width="48%" alt="Town02 closed-loop routes"/>
+  <img src="./graphs/town_trajectories.png" width="96%" alt="Aerial views and logged closed-loop trajectories for six towns"/>
 </p>
 
-All 20 logged episodes are retained in the corresponding result directories. Planned routes, successful and unsuccessful ego rollouts, start positions, and goals should be interpreted together with terminal reasons and quantitative metrics.
+The consolidated figure pairs aerial town views with all 20 logged routes for Town10HD_Opt and Town01-Town05. Planned paths, successful and unsuccessful ego rollouts, start positions, and route goals should be interpreted together with terminal reasons and quantitative metrics.
 
 ---
 
@@ -725,9 +737,9 @@ video/3.mp4
 
 - Use CARLA 0.9.15 on both the server and Python client.
 - Use synchronous stepping at 20 Hz.
-- Use 500 m target routes and record the actual planned length.
+- Use 500 m target routes when reproducing the committed evaluation archive, and record the actual planned length.
 - Evaluate exactly 20 episodes per town for the paper tables.
-- Use 20 NPC vehicles and 0 walkers for the supplied protocol.
+- Use 20 NPC vehicles and 0 walkers when reproducing the committed evaluation arguments; the manuscript tables explicitly state the NPC count but not the walker count.
 - Use seed 42 for the supplied single-seed runs; do not present this as multi-seed uncertainty.
 - Run one town per evaluation process and keep town-specific output directories.
 - Freeze the actor, disable gradients, and preserve deterministic action selection during evaluation.
@@ -735,6 +747,7 @@ video/3.mp4
 - Record checkpoint paths and preferably SHA-256 hashes in experiment metadata.
 - Report local DS, RC, IS, TTC, CTE, heading error, collision/km, timeout/km, and intervention rate together.
 - Preserve unsuccessful episodes and terminal reasons; do not plot only successful trajectories.
+- Keep curriculum and assistance flags attached to every training artifact. The supplied source log has curriculum and safety shield enabled, whereas the clean reference command above leaves both disabled.
 
 ---
 
