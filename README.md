@@ -1,6 +1,6 @@
 # Ego-Relational Policy Transfer for Safety-Aware End-to-End Autonomous Driving
 
-**Uncertainty-calibrated ego-relational policy transfer for closed-loop autonomous driving in CARLA**
+**Research code, evaluation logs, and reproducibility notes for safety-aware policy transfer in CARLA**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![CARLA](https://img.shields.io/badge/CARLA-0.9.15-orange)](https://carla.org/)
@@ -20,15 +20,15 @@
 ## Overview
 
 <p align="justify">
-This repository contains the CARLA implementation and experimental artifacts for <b>Ego-Relational Policy Transfer for Safety-Aware End-to-End Autonomous Driving</b>. The work studies how an end-to-end deep reinforcement learning policy can preserve closed-loop safety when the deployment town, weather, traffic density, and route configuration differ from the source training domain. Its central design is a shared reliability signal that connects ego-relational state construction, dense reward shaping, uncertainty-gated exploration, and cross-domain policy transfer.
+This repository accompanies <b>Ego-Relational Policy Transfer for Safety-Aware End-to-End Autonomous Driving</b>. It packages the CARLA 0.9.15 learning code, an evaluation-only runner, component-ablation controls, route traces, aggregate result files, figures, and media. The implementation is intended for studying policy behavior when the source and deployment domains differ in map, weather, traffic, or route geometry.
 </p>
 
 <p align="justify">
-The paper-aligned workflow separates learning from assessment. <code>code/car.py</code> contains source training, target adaptation, and target-only policy learning, but no evaluation loop. <code>code/car_eval.py</code> loads a frozen checkpoint, selects deterministic actions, performs no gradient updates, evaluates one town per process, and writes crash-resilient episode, step, route, trajectory, and summary records. <code>code/car2.py</code> adds matched component-ablation switches while preserving the same training environment and model interfaces.
+Learning and measurement are deliberately separated. <code>code/car.py</code> provides source training, target adaptation, and target-only learning. <code>code/car_eval.py</code> imports a compatible training module, freezes the selected checkpoint, uses deterministic actions, disables gradient updates, and evaluates one town per process. <code>code/car2.py</code> retains the same environment and agent interfaces while exposing the ablations reported in the manuscript.
 </p>
 
 <p align="justify">
-Unlike methods that compress the complete scene into a single global tensor, the proposed policy represents nearby vehicles, pedestrians, traffic lights, lane geometry, route progress, and observation variance as an ego-centered relational state. A Soft Actor-Critic policy then predicts throttle, brake, and steering while uncertainty influences relational attention, reward shaping, exploration, and transfer alignment.
+At each decision step, the policy describes nearby road users and traffic controls relative to the ego vehicle, combines that relational representation with route and motion features, and produces continuous throttle, brake, and steering commands. Observation variance and critic disagreement are also propagated through attention, reward construction, entropy control, and transfer losses. This README summarizes those implementation choices in original wording; the manuscript remains the authoritative source for the method derivation and experimental claims.
 </p>
 
 ---
@@ -36,11 +36,11 @@ Unlike methods that compress the complete scene into a single global tensor, the
 ## Method Summary
 
 <p align="center">
-  <img src="./diagrams/unified_framework.png" width="92%" alt="Unified ego-relational policy-transfer framework"/>
+  <img src="./figs/unified_framework.png" width="92%" alt="Unified ego-relational policy-transfer framework"/>
 </p>
 
 <p align="justify">
-The framework connects four modules. First, the ego-relational encoder builds a compact graph over at most ten nearby entities within 60 m and applies variance-weighted influence attention. Second, the differentiable dense reward combines safety, route progress, comfort, and uncertainty so that the policy receives useful feedback before terminal failures. Third, aleatoric edge variance and epistemic critic-ensemble variance are fused into a normalized uncertainty signal that gates policy entropy. Fourth, adaptation aligns action distributions, relational attention, and uncertainty moments, with first-order MAML-style initialization supporting target-domain adaptation.
+The implementation has four cooperating parts. The state encoder selects at most ten entities inside a 60 m neighborhood and applies reliability-aware relational attention. A dense objective supplies intermediate feedback for progress, safety, comfort, traffic compliance, and uncertainty. Observation variance and disagreement among five critics are combined into a normalized decision-uncertainty value. During adaptation, policy outputs, attention summaries, and uncertainty moments are aligned across domains, starting from a first-order MAML-style initialization when that option is enabled.
 </p>
 
 ```text
@@ -60,7 +60,7 @@ SAC actor-critic policy
         |
         +--> Dense reward: safety + progress + comfort + uncertainty
         +--> Critic ensemble: epistemic uncertainty during learning
-        +--> Entropy gate: beta(sigma_bar) = beta0 * (1 - sigma_bar)
+        +--> Entropy control: learned alpha + uncertainty-gated term
         +--> Transfer: policy KL + attention MMD + uncertainty matching
         |
         v
@@ -79,9 +79,10 @@ Closed-loop throttle, brake, steering
 | Batch size | 512 | Training |
 | Discount / target update | `gamma = 0.99`, `tau = 5e-3` | Training |
 | Optimizer | Adam, learning rate `3e-4` | Training |
-| Entropy gate | `beta0` selected from `{0.5, 1.0}` | Training |
+| Entropy control | Paper gate uses `beta0` from `{0.5, 1.0}`; code adds learned SAC `alpha` and scales the gated term by `lambda_ent = 0.2` | Training |
 | Transfer | Policy KL, attention MMD, uncertainty moments, MAML-style initialization | Adaptation |
-| Evaluation | 20 episodes, 500 m target routes, 20 NPC vehicles | Evaluation |
+| Evaluation | 20 episodes, 500 m target routes, 20 NPC vehicles, 0 walkers | Evaluation |
+| Assistance in committed town runs | Safety shield on; red-light assist off; intervention rate logged | Evaluation |
 
 ---
 
@@ -105,22 +106,22 @@ Closed-loop throttle, brake, steering
 drl-policy-transfer/
 ├── README.md
 ├── requirements.txt
-├── car.py                                  <- legacy monolithic implementation
+├── car.py                                  <- root compatibility snapshot
 │
 ├── code/
 │   ├── car.py                              <- paper-aligned training/adaptation only
 │   ├── car2.py                             <- training/adaptation with ablation switches
 │   └── car_eval.py                         <- frozen evaluation only; one town per process
 │
-├── diagrams/
-│   ├── unified_framework.pdf
-│   └── unified_framework.png
+├── docs/
+│   └── PROJECT_NOTES.md
 │
-├── figs/                                   <- manuscript figures in vector PDF form
-│   ├── framework.pdf
-│   ├── reward.pdf
-│   ├── uncertainty.pdf
-│   └── unified_framework.pdf
+├── figs/                                   <- method illustrations (PNG)
+│   ├── enrg.png
+│   ├── framework.png
+│   ├── reward.png
+│   ├── uncertainty.png
+│   └── unified_framework.png
 │
 ├── graphs/                                 <- GitHub-renderable experimental figures
 │   ├── standardized_closed_loop.png
@@ -136,7 +137,8 @@ drl-policy-transfer/
 │   ├── Town03_closed_loop_routes.png
 │   ├── Town04_closed_loop_routes.png
 │   ├── Town05_closed_loop_routes.png
-│   └── Town10HD_Opt_closed_loop_routes.png
+│   ├── Town10HD_Opt_closed_loop_routes.png
+│   └── uncertainty_training.png
 │
 ├── results/
 │   ├── evaluation/
@@ -147,13 +149,13 @@ drl-policy-transfer/
 │   │   ├── Town05/
 │   │   └── Town10HD_Opt/
 │   ├── routes/                             <- 20 route CSVs per evaluated town
-│   └── ablations/                          <- ablation checkpoints and evaluation records
+│   └── ablations/                          <- available ablation checkpoints and records
 │
 ├── screenshot/
 └── video/
 ```
 
-Each complete evaluation directory contains `episodes.csv`, `summary.csv`, `summary.json`, `routes.csv`, `trajectories.csv`, and per-episode records under `routes/` and `steps/`.
+Each complete evaluation directory contains `episodes.csv`, `summary.csv`, `summary.json`, `routes.csv`, `trajectories.csv`, and per-episode records under `routes/` and `steps/`. The archive includes six town-level evaluation directories and 20 route CSVs for each town. It does **not** include the full-model source checkpoint referenced by the saved evaluation metadata; train that model locally or provide the intended checkpoint before rerunning evaluation.
 
 ---
 
@@ -220,6 +222,8 @@ The first four removed-module variants alter source training. Transfer-alignment
 - Gymnasium
 
 The current paper-aligned files under `code/` import `gymnasium` directly. Legacy OpenAI Gym is not sufficient for those files.
+
+> **Dependency note:** the committed `requirements.txt` still lists `gym`. Until that file is updated, install `gymnasium` explicitly as shown below instead of relying on `pip install -r requirements.txt` alone.
 
 ### Python environment
 
@@ -553,11 +557,19 @@ where `RC_i` is route completion in percent and `IS_local_i` is the reciprocal p
 
 The committed `results/evaluation/*/summary.json` files reproduce the numerical values used in the manuscript tables. However, the metadata for Town01-Town04 records `source_agent.pt` rather than a per-town `target_agent.pt`. Therefore, the committed metadata alone does not establish that those four archived directories came from adapted checkpoints. For a strictly auditable manuscript reproduction, rerun Town01-Town04 from their adapted target checkpoints and retain each checkpoint path and hash in the result metadata.
 
+| Town group | Manuscript role | Committed protocol / checkpoint evidence |
+|---|---|---|
+| Town10HD_Opt | Source-domain stress test | `source_stress`; source checkpoint path |
+| Town01-Town04 | MAML-style target adaptation | `extended`; metadata points to `source_agent.pt` |
+| Town05 | Zero-shot transfer | `zero_shot`; source checkpoint path |
+
+This distinction prevents the README from claiming stronger provenance than the supplied files support.
+
 ---
 
 ## Included Evaluation Results
 
-The following values match the manuscript's six-domain closed-loop tables and the committed summary files.
+The following values are transcribed from the manuscript and agree numerically with the committed town summaries. “Paper role” describes the experimental role assigned in the manuscript; it is not a substitute for checkpoint provenance in the archive.
 
 | Setting | Town | Episodes | SR (%) | DS | RC (%) | IS | CTE (m) | Heading (rad) | Min TTC (s) | Intervention | Coll./km |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -572,6 +584,8 @@ Town04 provides the strongest aggregate score, while Town10HD_Opt has the lowest
 
 ### Module ablation on Town02
 
+These are the manuscript-reported one-module-at-a-time results. In the repository snapshot, complete 20-episode evaluation summaries are present for `no_transfer_alignment` and `no_maml`. The other four removed-module directories contain training manifests and/or checkpoints but not their complete evaluation summaries, so their table entries should be treated as paper values until those evaluations are added.
+
 | Variant | SR (%) | RC (%) | DS | IS | Coll./km | Timeout/km |
 |---|---:|---:|---:|---:|---:|---:|
 | Without uncertainty attention | 0.0 | 4.98 | 3.11 | 0.625 | 38.5632 | 0.0000 |
@@ -582,7 +596,7 @@ Town04 provides the strongest aggregate score, while Town10HD_Opt has the lowest
 | Without MAML initialization | 0.0 | 0.00 | 0.00 | 0.714 | 0.0000 | N/A |
 | Full model | 95.0 | 94.68 | 89.19 | 0.929 | 0.1055 | 0.0000 |
 
-For the no-MAML variant, timeout/km is not meaningful: all 20 episodes were timeout-penalized while total traveled distance was approximately `3.81e-9 km`. Dividing by this near-zero exposure produces an unstable raw rate.
+For the no-MAML variant, timeout/km is not meaningful: all 20 episodes were timeout-penalized while total traveled distance was approximately `3.81e-9 km`. Dividing by this near-zero exposure produces an unstable raw rate, so the table reports `N/A` rather than a misleading finite number.
 
 ---
 
@@ -644,7 +658,15 @@ The influence examples show how the relational state prioritizes a lead vehicle,
   <img src="./graphs/safety_reliability_diagram.png" width="48%" alt="Safety reliability diagram"/>
 </p>
 
-These figures are diagnostics of uncertainty activity and empirical safety behavior. They are not deployment safety certificates, and an unfitted checkpoint calibrator must not be described as held-out calibrated.
+These figures are diagnostics of uncertainty activity and empirical safety behavior. The reliability-style plot uses binned confidence and completion outcomes; it is not a deployment safety certificate or evidence of held-out calibration. An unfitted checkpoint calibrator must be reported as unfitted.
+
+### Training-time uncertainty trace
+
+<p align="center">
+  <img src="./graphs/uncertainty_training.png" width="86%" alt="Training-time uncertainty and entropy trace"/>
+</p>
+
+This log-derived trace compares normalized decision uncertainty with the effective entropy coefficient used by the implementation. The effective coefficient includes both the learned SAC temperature and the scaled uncertainty-gated term; it is not simply `beta0 * (1 - sigma_bar)`.
 
 ### State and route behavior
 
@@ -688,12 +710,14 @@ video/3.mp4
 | Item | Repository behavior | Reporting requirement |
 |---|---|---|
 | Attention score | Default `reliability` form penalizes distance and variance, matching the manuscript text and Table I. `paper_ratio` reproduces the printed Eq. (6), whose variance behavior is inconsistent with that text. | Report which form was used. |
+| Entropy coefficient | The manuscript presents an uncertainty gate, while the code uses `alpha + lambda_ent * beta0 * (1 - sigma_bar)` with learned SAC `alpha` and `lambda_ent = 0.2`. | Use the implementation expression when describing released-code training traces. |
 | MAML | The implementation is a first-order approximation and omits exact second-order meta-gradients. | Describe it as first-order MAML-style initialization. |
 | Training curriculum | Optional scripted route guidance and traffic ramp; disabled by default. | It is not part of the paper method. Disclose it and apply it to all matched baselines if enabled. |
 | Safety assistance | The shield and red-light assist are deployment/evaluation interventions. | Report intervention rate and assistance flags with DS and SR. |
 | Driving score | Evaluator computes a bounded local score from observable events. | Do not call it an official CARLA Leaderboard score. |
 | Uncertainty calibration | Evaluation never fits the calibrator on test data. | If the checkpoint calibrator is unfitted, report uncertainty as diagnostic rather than held-out calibrated. |
 | Checkpoint selection | Training can save final and optional training-selected checkpoints. | Use final checkpoints or a separate validation set; do not select on the test towns. |
+| Archive provenance | Town01-Town04 summaries point to the source checkpoint even though the paper labels those domains as adapted. | Do not claim that archived files prove adapted-checkpoint evaluation; rerun and record hashes. |
 
 ---
 
@@ -763,6 +787,7 @@ This warning is expected for the supplied checkpoint metadata. Evaluation correc
 
 Inspect the step CSVs for throttle, brake, traffic-light state, progress, TTC, safety intervention, and terminal reason. A stopped vehicle can result from conservative actor output, red-light logic, blocked traffic, an invalid adapted checkpoint, or a route/recovery failure.
 
+
 ---
 
 ## Limitations
@@ -770,4 +795,3 @@ Inspect the step CSVs for throttle, brake, traffic-light state, progress, TTC, s
 <p align="justify">
 The repository supports reproducible simulation analysis, not real-world deployment certification. The supplied results are single-seed CARLA evaluations, the local driving score covers only events exposed by this environment, and the archived uncertainty calibrator is not fitted on a held-out training split. The result metadata also does not independently establish adapted-checkpoint provenance for Town01-Town04. Real-vehicle deployment would additionally require validated perception, sensor calibration, fail-safe control, operational design-domain constraints, safety-driver supervision, and compliance with applicable regulations.
 </p>
-
