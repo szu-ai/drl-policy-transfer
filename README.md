@@ -637,7 +637,7 @@ Its `[TRAIN]` rows contain training step, critic loss, actor loss, learned SAC t
 ### Cross-domain closed-loop results
 
 <p align="center">
-  <img src="./graphs/closed_loop.png" width="86%" alt="Success rate, bounded driving score, and infraction score across towns"/>
+  <img src="./graphs/closed_loop.png" width="50%" alt="Success rate, bounded driving score, and infraction score across towns"/>
 </p>
 
 This summary compares success rate, bounded local driving score, and local infraction score across the six evaluation towns.
@@ -645,7 +645,7 @@ This summary compares success rate, bounded local driving score, and local infra
 ### Episode-level statistics
 
 <p align="center">
-  <img src="./graphs/episode_heatmap.png" width="86%" alt="Town-level closed-loop statistics heatmap"/>
+  <img src="./graphs/episode_heatmap.png" width="50%" alt="Town-level closed-loop statistics heatmap"/>
 </p>
 
 The annotated cells report town means for driving score, route completion, CTE, heading error, minimum TTC, and intervention rate. Color is normalized independently by row, so color intensity must not be compared across different metrics.
@@ -653,7 +653,7 @@ The annotated cells report town means for driving score, route completion, CTE, 
 ### Influence attention
 
 <p align="center">
-  <img src="./graphs/influence_attention.png" width="82%" alt="Influence attention over nearby road users"/>
+  <img src="./graphs/influence_attention.png" width="100%" alt="Influence attention over nearby road users"/>
 </p>
 
 The four examples reproduce the clear-intersection, fog-intersection, pedestrian-crossing, and dense cut-in attention summaries. The bars are normalized relational weights, not causal-effect estimates.
